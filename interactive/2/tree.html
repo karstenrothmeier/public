@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <title>Microsoft Corporation</title>
+      <meta name="description" content="Decision Tree">
+      <meta name="author" content="Microsoft Corporation">
+      <meta http-equiv="X-UA-Compatible" content="IE=10">
+      <!-- styles -->
+      <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+      <link href="assets/css/revo-dtree.min.css" rel="stylesheet">
+   </head>
+   <body class="revo-dtree">
+      <!-- Tool tip -->
+      <script type="text/html" id="regression-tip">
+         <div class="tip tip-<%= pD.pos %>">
+           <div class="tip-arrow tip-arrow-<%= pD.arrow %>"></div>
+           <div class="tip-inner">
+             <div class="tip-hd"><strong><%= pD.label %></strong></div>
+             <div class="tip-bd">
+               <table>
+                <body>
+                 <tr><td>n</td><td> = </td><td><%=  pD.n %></td></tr>
+                 <tr><td>dev</td><td> = </td><td><%= pD.deviance %></td></tr>
+                 <tr><td>pred</td><td> = </td><td><%= pD.yval %></td></tr>
+                 </body>
+               </table>
+             </div>
+             <div class="tip-ft">
+               <strong> <%= pD.type === 'leaf' ? 'terminal node' : 'SPLIT &#183; ' + pD.splitVar %></strong>
+             </div>
+           </div>
+         </div>         
+      </script>
+      <script type="text/html" id="classification-tip">
+         <div class="tip tip-<%= pD.pos %>">
+           <div class="tip-arrow tip-arrow-<%= pD.arrow %>"></div>
+           <div class="tip-inner">
+             <div class="tip-hd"><strong><%= pD.label %></strong></div>
+             <div class="tip-bd">
+               <span>n = <%=n=pD.n %>, loss = <%=pD.loss %>, pred = <%= pD.yval%></span>
+               <div id="surface" style="opacity:1;"></div>
+             </div>
+             <div class="tip-ft">
+               <strong> <%= pD.type === 'leaf' ? 'terminal node' : 'SPLIT &#183; ' + pD.splitVar %></strong>
+             </div>
+           </div>
+         </div>         
+      </script>
+      <script type="text/html" id="regression-legend">
+         <div class="legend-container">
+           <div class="sticky">              
+              <div id="legend-toggle" class="legend-expand">-</div>
+              <div class="shape square" style="background:<%= range[1] %>">
+                 <div class="split-info"><%= legend.rule.depVars.name %></div>
+              </div>              
+              <div id="dep-legend" class="dep-legend gradient">
+                <div class="plot" id="gradient"></div>
+                <div class="axis"></div>
+                <div class="axis-value">
+                    <span class="left">0</span>
+                    <span class="right"><%=d3.round(legend.rule.depVars.maxyval, 1)%></span>
+                </div>
+              </div>
+              <div class="indvars-container">
+                <ul id="legend-vars"></ul>
+              </div>
+           </div>
+         </div>  
+      </script>
+      <script type="text/html" id="classification-legend">
+         <div class="legend-container">
+           <div class="sticky">
+              <div>
+                <div id="legend-toggle" class="legend-expand">-</div>
+                <div class="shape square" style="background:<%= range[1] %>">
+                  <div class="split-info"><%= legend.rule.depVars.name %></div>
+                </div>
+              </div>
+              <div id="dep-legend" class="dep-legend">
+                <ul></ul>                
+              </div>
+              <div class="indvars-container">
+                <ul id="legend-vars"></ul>
+              </div>
+           </div>
+         </div>  
+      </script>
+      <script type="text/html" id="pred-path">
+         <div class="legend-container">
+           <div class="sticky">
+              <div class="indvars-container">
+                <p class="path-title">Predicting <%= variable %> </p>
+                <ul id="pred-path-list"></ul>
+              </div>
+           </div>
+         </div>
+      </script>
+
+      <!-- Navbar
+         ================================================== -->
+      <div class="navbar navbar-fixed-top">
+         <div class="navbar-inner">
+            <div class="container-fluid">
+               <a class="brand" href="#">RevoTreeView</a>
+               <ul class="nav pull-right">
+                  <li class="dropdown">
+                     <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="icon-wrench"></i> Options <b class="caret"></b></a>
+                     <ul id="layers-dropdown" class="dropdown-menu layers">
+                       <div>
+                        <label class="checkbox">
+                          <input class="checkbox-filter-layers" data-layer="border" type="checkbox" checked>
+                          Show variability using border thickness
+                        </label>                  
+                        <label class="checkbox">
+                          <input class="checkbox-filter-layers" data-layer="label" type="checkbox" checked>
+                          Show split and predicted values on node label
+                        </label>
+                        <label class="indent">
+                          Truncate labels: <input type="text" class="label-length" data-layer="truncate">
+                        </label>
+                        <label class="checkbox">
+                          <input class="checkbox-filter-layers" data-layer="color" type="checkbox" checked>
+                          Use node color to identify variables
+                        </label> 
+                        <label class="checkbox">
+                          <input class="checkbox-filter-layers" data-layer="legend" type="checkbox" checked>
+                          Display legend area
+                        </label>
+                        <ul class="inline">                                
+                          <li>
+                            <label class="radio indent">
+                              <input type="radio" name="var-display" data-layer="legcolor" value="3" checked>
+                              Show color legend
+                            </label>
+                          </li>
+                          <li>
+                            <label class="radio indent">
+                              <input type="radio" name="var-display" data-layer="path" value="4">
+                              Show prediction path
+                            </label>
+                          </li>
+                        </ul>
+                      </div>                      
+                    </ul>
+                  </li>
+                  <li class="dropdown">
+                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">Help <b class="caret"></b></a>
+                     <ul class="dropdown-menu">
+                        <li><a href="assets/help/help.html" target="_blank"><i class="icon-share-alt"></i> Open Help</a></li>
+                        <li class="divider"></li>
+                        <li class="nav-header">Hints</li>
+                        <li><span><code>Click      </code>Expand / Collapse</span></li>
+                        <li><span><code>CTRL + Click</code>Expand 1 level</span></li>
+                        <li><span><code>ALT + Click </code> Expand all levels</span></li>
+                     </ul>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+
+      <!-- Container
+         ================================================== -->
+      <div class="container-fluid container-dtree">
+       <div class="row-fluid">
+        <!-- Error Essage -->
+        <div id="dms" class="dms hide"></div>
+        <div id="legend-container" class="pull-right">
+          <div id="legend"></div>
+          <div id="path" class="hide"></div>
+        </div>
+        <div id="tree"></div>                
+      </div>
+    </div>
+   </body>
+
+   <!-- javascript -->
+   <script src="assets/vendor/jquery/js/jquery.min.js"></script>
+   <script src="assets/vendor/bootstrap/js/bootstrap-dropdown.js"></script>
+   <script src="assets/vendor/d3/js/d3.min.js"></script>
+   <script src="assets/js/revo-dtree.js"></script>
+   <script type="text/javascript">
+      (function(context) {
+        try {
+          var data = {"method":"class","summary": {"minn":33,"maxn": 5416,"minloss":0,"maxloss": 2430},"legend": {"depVars": {"name": "churn","levels":["FALSE","TRUE"]},"indVars": ["avg_dayStreaksLength","avg_logins","avg_lvl","item_amount.Depleted.Deposit","missedDays","name_amount.Buff.Friend","sd_avg_lvl","sum_inactiveDays","type_amount.BuildingFarmfield_Halloween_01"]},"label":"root","n":5416,"loss":2430,"yval":"TRUE","prob":["0.44867061","0.55132939"],"splitVar":"avg_lvl","splitVal":"11.45","type":"split","children": [{"label":"avg_lvl>=11.45","n":2597,"loss": 348,"yval":"FALSE","prob":["0.86599923","0.13400077"],"splitVar":"item_amount.Depleted.Deposit","splitVal":"5000","type":"split","children": [{"label":"item_amount.Depleted.Deposit>=5000","n":1263,"loss":   0,"yval":"FALSE","prob":["1.00000000","0.00000000"],"type":"leaf"},{"label":"item_amount.Depleted.Deposit< 5000","n":1334,"loss": 348,"yval":"FALSE","prob":["0.73913043","0.26086957"],"splitVar":"sum_inactiveDays","splitVal":"4.5","type":"split","children": [{"label":"sum_inactiveDays>=4.5","n":772,"loss":  97,"yval":"FALSE","prob":["0.87435233","0.12564767"],"splitVar":"sum_inactiveDays","splitVal":"26.5","type":"split","children": [{"label":"sum_inactiveDays>=26.5","n":381,"loss":   7,"yval":"FALSE","prob":["0.98162730","0.01837270"],"type":"leaf"},{"label":"sum_inactiveDays< 26.5","n":391,"loss":  90,"yval":"FALSE","prob":["0.76982097","0.23017903"],"splitVar":"avg_dayStreaksLength","splitVal":"multiple","type":"split","children": [{"label":"avg_dayStreaksLength=1.5,10.5,10.6666666666667,12.5,13,15,19,2.5,26,3.5,3.66666666666667,4,5,6,9,1.2,1.25,10.2,11,11.6666666666667,12.4,13.5,14.25,14.5,15.25,15.4,17.3333333333333,18,18.5,19.3333333333333,19.5,2.25,2.66666666666667,2.71428571428571,2.75,21,22,24.5,25,27.5,29.5,3.16666666666667,3.2,3.25,3.6,32.5,4.11111111111111,4.28571428571429,4.33333333333333,4.8,4.875,47,5.16666666666667,5.25,5.33333333333333,5.75,6.16666666666667,6.33333333333333,6.4,6.57142857142857,6.66666666666667,6.71428571428571,6.75,7.2,7.25,7.33333333333333,7.4,7.5,7.75,8.25,8.66666666666667,8.83333333333333,9.28571428571429,9.33333333333333,9.5","n":158,"loss":   5,"yval":"FALSE","prob":["0.96835443","0.03164557"],"type":"leaf"},{"label":"avg_dayStreaksLength=0,1,1.33333333333333,1.66666666666667,1.75,10,12,2,2.33333333333333,2.83333333333333,20,24,3,3.33333333333333,4.5,4.66666666666667,7,8,8.5","n":233,"loss":  85,"yval":"FALSE","prob":["0.63519313","0.36480687"],"splitVar":"missedDays","splitVal":"9.5","type":"split","children": [{"label":"missedDays>=9.5","n":198,"loss":  55,"yval":"FALSE","prob":["0.72222222","0.27777778"],"splitVar":"missedDays","splitVal":"29.5","type":"split","children": [{"label":"missedDays>=29.5","n":71,"loss":   6,"yval":"FALSE","prob":["0.91549296","0.08450704"],"type":"leaf"},{"label":"missedDays< 29.5","n":127,"loss":  49,"yval":"FALSE","prob":["0.61417323","0.38582677"],"splitVar":"name_amount.Buff.Friend","splitVal":"15","type":"split","children": [{"label":"name_amount.Buff.Friend>=15","n":47,"loss":   7,"yval":"FALSE","prob":["0.85106383","0.14893617"],"type":"leaf"},{"label":"name_amount.Buff.Friend< 15","n":80,"loss":  38,"yval":"TRUE","prob":["0.47500000","0.52500000"],"splitVar":"avg_logins","splitVal":" 0.5","type":"split","children": [{"label":"avg_logins< 0.5","n":43,"loss":  16,"yval":"FALSE","prob":["0.62790698","0.37209302"],"type":"leaf"},{"label":"avg_logins>=0.5","n":37,"loss":  11,"yval":"TRUE","prob":["0.29729730","0.70270270"],"type":"leaf"}]}]}]},{"label":"missedDays< 9.5","n":35,"loss":   5,"yval":"TRUE","prob":["0.14285714","0.85714286"],"type":"leaf"}]}]}]},{"label":"sum_inactiveDays< 4.5","n":562,"loss": 251,"yval":"FALSE","prob":["0.55338078","0.44661922"],"splitVar":"type_amount.BuildingFarmfield_Halloween_01","splitVal":"0.5","type":"split","children": [{"label":"type_amount.BuildingFarmfield_Halloween_01>=0.5","n":82,"loss":   0,"yval":"FALSE","prob":["1.00000000","0.00000000"],"type":"leaf"},{"label":"type_amount.BuildingFarmfield_Halloween_01< 0.5","n":480,"loss": 229,"yval":"TRUE","prob":["0.47708333","0.52291667"],"splitVar":"avg_logins","splitVal":" 0.5","type":"split","children": [{"label":"avg_logins< 0.5","n":225,"loss":  77,"yval":"FALSE","prob":["0.65777778","0.34222222"],"splitVar":"missedDays","splitVal":"24.5","type":"split","children": [{"label":"missedDays>=24.5","n":176,"loss":  41,"yval":"FALSE","prob":["0.76704545","0.23295455"],"type":"leaf"},{"label":"missedDays< 24.5","n":49,"loss":  13,"yval":"TRUE","prob":["0.26530612","0.73469388"],"type":"leaf"}]},{"label":"avg_logins>=0.5","n":255,"loss":  81,"yval":"TRUE","prob":["0.31764706","0.68235294"],"splitVar":"avg_dayStreaksLength","splitVal":"multiple","type":"split","children": [{"label":"avg_dayStreaksLength=1,10,12,2,3,4.5,22.5,49","n":92,"loss":  46,"yval":"FALSE","prob":["0.50000000","0.50000000"],"splitVar":"sd_avg_lvl","splitVal":"3.74","type":"split","children": [{"label":"sd_avg_lvl>=3.74","n":59,"loss":  23,"yval":"FALSE","prob":["0.61016949","0.38983051"],"type":"leaf"},{"label":"sd_avg_lvl< 3.74","n":33,"loss":  10,"yval":"TRUE","prob":["0.30303030","0.69696970"],"type":"leaf"}]},{"label":"avg_dayStreaksLength=0,1.5,10.5,10.6666666666667,12.5,13,14,17,19,2.33333333333333,2.5,23,24,26,29,3.66666666666667,31,39,4,4.66666666666667,42,43,5,6,7,8,8.33333333333333,8.5,9,9.25","n":163,"loss":  35,"yval":"TRUE","prob":["0.21472393","0.78527607"],"type":"leaf"}]}]}]}]}]},{"label":"avg_lvl< 11.45","n":2819,"loss": 181,"yval":"TRUE","prob":["0.06420717","0.93579283"],"splitVar":"sum_inactiveDays","splitVal":"10.5","type":"split","children": [{"label":"sum_inactiveDays>=10.5","n":183,"loss":  30,"yval":"FALSE","prob":["0.83606557","0.16393443"],"splitVar":"sum_inactiveDays","splitVal":"16.5","type":"split","children": [{"label":"sum_inactiveDays>=16.5","n":148,"loss":  12,"yval":"FALSE","prob":["0.91891892","0.08108108"],"type":"leaf"},{"label":"sum_inactiveDays< 16.5","n":35,"loss":  17,"yval":"TRUE","prob":["0.48571429","0.51428571"],"type":"leaf"}]},{"label":"sum_inactiveDays< 10.5","n":2636,"loss":  28,"yval":"TRUE","prob":["0.01062215","0.98937785"],"type":"leaf"}]}]};      
+          dtree({ data: data, id: 'tree' });
+        } catch(e) {
+          var dms = document.getElementById('dms');
+          dms.innerHTML = e.toString();
+          dms.className = 'dms alert alert-error';
+        }
+      })(this);
+   </script>
+</html>
